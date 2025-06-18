@@ -1,4 +1,5 @@
 
+# ================= app/templates/index.html =================
 <!DOCTYPE html>
 <html>
 <head>
@@ -7,32 +8,93 @@
   <script src="/static/sip.min.js"></script>
 </head>
 <body>
-  <h2>SIP Call</h2>
+  <h2>SIP Call (Browser to Browser)</h2>
+  <p>Enter your username and target to call:</p>
   <input id="identity" placeholder="Your username (alice or bob)">
-    <input id="target" placeholder="Target username">
-    <button onclick="makeCall()">Call</button>
-<script>
-  let userAgent;
+  <input id="target" placeholder="Target username">
+  <button onclick="start()">Start Client</button>
+  <button onclick="makeCall()">Call</button>
 
-  function makeCall() {
-    const identity = document.getElementById('identity').value;
-    const target = document.getElementById('target').value;
+  <p id="status"></p>
 
-    userAgent = new SIP.UserAgent({
-      uri: `sip:${identity}@sip-flask-app-production.up.railway.app`,
-      transportOptions: {
-        server: 'wss://sip-flask-app-production.up.railway.app/ws'
-      },
-      authorizationUsername: identity,
-      authorizationPassword: identity === 'alice' ? 'alicepass' : 'bobpass'
-    });
+  <audio id="remoteAudio" autoplay></audio>
 
-    userAgent.start().then(() => {
-      const inviter = new SIP.Inviter(userAgent, `sip:${target}@sip-flask-app-production.up.railway.app`);
-      inviter.invite();
-    });
-  }
-</script>
+  <script>
+    let userAgent;
+    let session;
 
+    function start() {
+      const identity = document.getElementById('identity').value;
+      if (!identity) return alert("Please enter your identity.");
+
+      userAgent = new SIP.UserAgent({
+        uri: `sip:${identity}@sip-flask-app-production.up.railway.app`,
+        transportOptions: {
+          server: 'wss://sip-flask-app-production.up.railway.app/ws'
+        },
+        authorizationUsername: identity,
+        authorizationPassword: identity === 'alice' ? 'alicepass' : 'bobpass',
+        delegate: {
+          onInvite(invitation) {
+            document.getElementById('status').textContent = "Incoming call from: " + invitation.remoteIdentity.uri.toString();
+
+            invitation.accept({
+              sessionDescriptionHandlerOptions: {
+                constraints: { audio: true, video: false }
+              }
+            }).then(() => {
+              document.getElementById('status').textContent = "Call accepted";
+              attachAudio(invitation);
+            }).catch(() => {
+              document.getElementById('status').textContent = "Call failed to accept";
+            });
+          }
+        }
+      });
+
+      userAgent.start().then(() => {
+        document.getElementById('status').textContent = "SIP client ready as: " + identity;
+      });
+    }
+
+    function makeCall() {
+      const target = document.getElementById('target').value;
+      if (!userAgent || !target) return alert("Start your client and enter target.");
+
+      session = new SIP.Inviter(userAgent, `sip:${target}@sip-flask-app-production.up.railway.app`, {
+        sessionDescriptionHandlerOptions: {
+          constraints: { audio: true, video: false }
+        }
+      });
+
+      session.invite().then(() => {
+        document.getElementById('status').textContent = "Calling " + target + "...";
+      }).catch(() => {
+        document.getElementById('status').textContent = "Call failed";
+      });
+
+      session.stateChange.addListener((newState) => {
+        if (newState === SIP.SessionState.Established) {
+          document.getElementById('status').textContent = "Call connected with " + target;
+          attachAudio(session);
+        } else if (newState === SIP.SessionState.Terminated) {
+          document.getElementById('status').textContent = "Call ended";
+        }
+      });
+    }
+
+    function attachAudio(session) {
+      const receiver = session.sessionDescriptionHandler;
+      if (receiver && receiver.peerConnection) {
+        const remoteStream = new MediaStream();
+        receiver.peerConnection.getReceivers().forEach((receiver) => {
+          if (receiver.track && receiver.track.kind === "audio") {
+            remoteStream.addTrack(receiver.track);
+          }
+        });
+        document.getElementById('remoteAudio').srcObject = remoteStream;
+      }
+    }
+  </script>
 </body>
 </html>
