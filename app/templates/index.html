@@ -8,27 +8,31 @@
 </head>
 <body>
   <h2>SIP Call</h2>
-  <input id="target" placeholder="Target username (e.g., alice)">
-  <button onclick="makeCall()">Call</button>
+  <input id="identity" placeholder="Your username (alice or bob)">
+    <input id="target" placeholder="Target username">
+    <button onclick="makeCall()">Call</button>
+<script>
+  let userAgent;
 
-  <script>
-    const userAgent = new SIP.UserAgent({
-      uri: 'sip:alice@sip-flask-app-production.up.railway.app',
+  function makeCall() {
+    const identity = document.getElementById('identity').value;
+    const target = document.getElementById('target').value;
+
+    userAgent = new SIP.UserAgent({
+      uri: `sip:${identity}@sip-flask-app-production.up.railway.app`,
       transportOptions: {
         server: 'wss://sip-flask-app-production.up.railway.app/ws'
       },
-      authorizationUsername: 'alice',
-      authorizationPassword: 'alicepass'
+      authorizationUsername: identity,
+      authorizationPassword: identity === 'alice' ? 'alicepass' : 'bobpass'
     });
 
-
-    userAgent.start();
-
-    function makeCall() {
-      const target = document.getElementById('target').value;
-      const inviter = new SIP.Inviter(userAgent, `sip:${target}@yourapp.fly.dev`);
+    userAgent.start().then(() => {
+      const inviter = new SIP.Inviter(userAgent, `sip:${target}@sip-flask-app-production.up.railway.app`);
       inviter.invite();
-    }
-  </script>
+    });
+  }
+</script>
+
 </body>
 </html>
