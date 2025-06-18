@@ -13,13 +13,14 @@
 
   <script>
     const userAgent = new SIP.UserAgent({
-      uri: 'sip:alice@yourapp.fly.dev',
+      uri: 'sip:alice@sip-flask-app-production.up.railway.app',
       transportOptions: {
-        server: 'wss://yourapp.fly.dev:8088/ws'
+        server: 'wss://sip-flask-app-production.up.railway.app/ws'
       },
       authorizationUsername: 'alice',
       authorizationPassword: 'alicepass'
     });
+
 
     userAgent.start();
 
