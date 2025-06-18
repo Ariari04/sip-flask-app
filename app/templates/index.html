@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SIP Web Call</title>
+  <script src="/static/sip.min.js"></script>
+</head>
+<body>
+  <h2>SIP Call</h2>
+  <input id="target" placeholder="Target username (e.g., alice)">
+  <button onclick="makeCall()">Call</button>
+
+  <script>
+    const userAgent = new SIP.UserAgent({
+      uri: 'sip:alice@yourapp.fly.dev',
+      transportOptions: {
+        server: 'wss://yourapp.fly.dev:8088/ws'
+      },
+      authorizationUsername: 'alice',
+      authorizationPassword: 'alicepass'
+    });
+
+    userAgent.start();
+
+    function makeCall() {
+      const target = document.getElementById('target').value;
+      const inviter = new SIP.Inviter(userAgent, `sip:${target}@yourapp.fly.dev`);
+      inviter.invite();
+    }
+  </script>
+</body>
+</html>
